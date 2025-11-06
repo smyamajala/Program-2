@@ -1,106 +1,110 @@
-#include <iostream>       // For input/output streams (cout, cerr)
-#include <fstream>        // For file input/output (ifstream)
-#include <vector>         // For using vector data structure
-#include "json.hpp"       // Include the JSON library for parsing/creating JSON
+#include <iostream>       // for input/output streams (cout, cerr)
+#include <fstream>        // for file input/output (ifstream)
+#include <vector>         // for using vector data structure
+#include "json.hpp"       // include the JSON library
 
-using json = nlohmann::json;  // Create shortcut for nlohmann::json
-using namespace std;          // Use standard namespace to avoid std:: prefix
+using json = nlohmann::json;  // create shortcut for nlohmann::json
+using namespace std;          // use standard namespace
 
 int main(int argc, char** argv) {
-    // Check if correct number of command line arguments provided
-    // argc should be 2: program name + input filename
+    // check if correct number of command line arguments provided
+    // argc should be 2
+    // program name + input filename
     if (argc != 2) {
-        // Print error message to standard error if usage is incorrect
-        cerr << "Usage: " << argv[0] << " <input.json>" << endl;
-        return 1;  // Return error code 1 indicating failure
+        cerr << "Usage: " << argv[0] << " <input.json>" << endl; // print error message to standard error
+        return 1;  // return error code 1 indicating failure
     }
     
-    // Store the filename from command line arguments
-    string filename = argv[1];  // argv[1] contains the input JSON filename
+    // store the filename from command line arguments
+    // define it as a variable
+    string filename = argv[1];  // argv[1] is the input JSON filename
     
-    // Create input file stream object to read the JSON file
+    // create input file stream object to read JSON file
     ifstream input_file(filename);
-    // Check if file was successfully opened
+    
+    // check if file was successfully opened
     if (!input_file.is_open()) {
-        // Print error message if file cannot be opened
-        cerr << "Error: Cannot open file " << filename << endl;
-        return 1;  // Return error code 1 indicating failure
+        cerr << "Error: Cannot open file " << filename << endl; // print error message if file cannot be opened
+        return 1;  // return error code 1 indicating failure
     }
 
-    // Create JSON object to store parsed data from input file
+    // create JSON object to store parsed data
     json data;
     try {
-        // Parse the entire JSON file into the data object
-        input_file >> data;  // This reads and parses JSON from the file stream
+        // parse the entire JSON file into the data object
+        input_file >> data;  // read and parse data from filestream
     } catch (exception& e) {
-        // Handle JSON parsing errors (invalid JSON format)
-        cerr << "Error: Invalid JSON in file " << filename << endl;
-        return 1;  // Return error code 1 indicating failure
+        
+        // handle JSON parsing errors (invalid JSON format)
+        cerr << "Error: Invalid JSON in file " << filename << endl;// print error message
+        return 1;  // return error code 1 indicating failure
     }
-    // Close the input file since we've read all data into memory
-    input_file.close();
     
-    // Create output JSON object that will contain our verification results
+    input_file.close(); // close file
+    
+    // create output JSON object that will contain our verification results
     json output;
-    // Counter to track how many samples have consecutive inversions
+    // tracker how many samples have consecutive inversions
     int samples_with_inversions = 0;
     
-    // Extract metadata information from the input JSON
-    int arraySize = data["metadata"]["arraySize"];  // Get size of each array from metadata
-    int numSamples = data["metadata"]["numSamples"];  // Get number of samples from metadata
+    // extract metadata information from the input JSON
+    int arraySize = data["metadata"]["arraySize"];  // size of each array
+    int numSamples = data["metadata"]["numSamples"];  // number of samples
     
-    // Iterate through each key-value pair in the input JSON data using iterators
+    // iterate through each key-value pair in the input JSON data using iterators
     // auto it = data.begin() gets an iterator to the first element
     for (auto it = data.begin(); it != data.end(); ++it) {
-        // Get the key (sample name) from current JSON element using iterator
+        
+        // get the key (sample name) from current JSON element using iterator
         string sample_name = it.key();
         
-        // Skip the metadata section since we only want to check sample arrays
+        // skip the metadata section
         if (sample_name == "metadata") {
-            continue;  // Skip to next iteration of the loop
+            continue;  // skip to next iteration
         }
         
-        // Extract the array data for current sample from JSON value using iterator
+        // extract the array data for current sample
         vector<int> sample_array = it.value();
         
-        // Create JSON object to store inversions found in current sample
+        // create JSON object 
+        // stores inversions found in current sample
         json sample_inversions;
-        // Flag to track if current sample has any inversions
+        // tracker if current sample has any inversions
         bool has_inversions = false;
         
-        // Loop through the sample array to check for consecutive inversions
-        // Check from first element to second-to-last element
+        // loop through the sample array to check for consecutive inversions
+        // check from first element to second-to-last element
         for (int i = 0; i < sample_array.size() - 1; i++) {
-            // Check if current element is greater than next element (inversion found)
+            // check if current element is greater than next element (inversion found)
             if (sample_array[i] > sample_array[i + 1]) {
-                // Set flag to true since we found at least one inversion
+                // tracker becomes true
                 has_inversions = true;
                 
-                // Add the inversion to sample_inversions JSON object
-                // Key: index as string, Value: pair [current_element, next_element]
+                // add the inversion to sample_inversions JSON object
+                // key: index as string, Value: pair [current_element, next_element]
                 sample_inversions[to_string(i)] = {sample_array[i], sample_array[i + 1]};
             }
         }
         
-        // If current sample has any inversions, add it to output JSON
+        // add inversions to JSON output
         if (has_inversions) {
-            samples_with_inversions++;  // Increment counter of samples with inversions
-            // Add ConsecutiveInversions object for this sample to output
-            output[sample_name]["ConsecutiveInversions"] = sample_inversions;
-            // Include the entire sample array in output for reference
-            output[sample_name]["sample"] = sample_array;
+            samples_with_inversions++;  // increment counter of samples with inversions
+            
+            output[sample_name]["ConsecutiveInversions"] = sample_inversions; // add ConsecutiveInversions object for this sample to output
+           
+            output[sample_name]["sample"] = sample_array;  // include the entire sample array in output for reference
         }
     }
     
-    // Add metadata section to output JSON with information about the verification
-    output["metadata"]["arraySize"] = arraySize;  // Size of arrays from input
-    output["metadata"]["file"] = filename;  // Name of input file that was checked
-    output["metadata"]["numSamples"] = numSamples;  // Total samples from input
-    output["metadata"]["samplesWithInversions"] = samples_with_inversions;  // Count of problematic samples
+    // add metadata section to output JSON with information about the verification
+    output["metadata"]["arraySize"] = arraySize;  // size of arrays from input
+    output["metadata"]["file"] = filename;  // name of input file that was checked
+    output["metadata"]["numSamples"] = numSamples;  // total samples from input
+    output["metadata"]["samplesWithInversions"] = samples_with_inversions;  // count of problematic samples
     
-    // Print the final output JSON to standard output with pretty formatting
-    // dump(4) formats JSON with 4-space indentation for readability
+    // Print the final output JSON to standard output
+    // dump(4) formats to 4-space indentation
     cout << output.dump(4) << endl;
     
-    return 0;  // Return 0 indicating successful program execution
+    return 0;  // Return 0 :)
 }
